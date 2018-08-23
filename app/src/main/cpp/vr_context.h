@@ -3,34 +3,60 @@
 
 #include <memory>
 #include <map>
+#include <jni.h>
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
 #include <android/input.h>
 #include "packet_types.h"
-#include "render.h"
 #include "utils.h"
 #include "udp.h"
 
+/// A 3D vector.
+typedef struct ovrVector3f_
+{
+    float x, y, z;
+} ovrVector3f;
+
+
+
+typedef struct ovrPosef_
+{
+    ovrQuatf	Orientation;
+    ovrVector3f	Position;
+} ovrPosef;
+
+typedef struct ovrRigidBodyPosef_
+{
+    ovrPosef		Pose;
+    ovrVector3f		AngularVelocity;
+    ovrVector3f		LinearVelocity;
+    ovrVector3f		AngularAcceleration;
+    ovrVector3f		LinearAcceleration;
+    double			TimeInSeconds;			//< Absolute time of this pose.
+    double			PredictionInSeconds;	//< Seconds this pose was predicted ahead.
+} ovrRigidBodyPosef;
+
+
+/// Tracking state at a given absolute time.
+typedef struct ovrTracking2_
+{
+    /// Sensor status described by ovrTrackingStatus flags.
+    unsigned int		Status;
+
+
+    /// Predicted head configuration at the requested absolute time.
+    /// The pose describes the head orientation and center eye position.
+    ovrRigidBodyPosef	HeadPose;
+    struct
+    {
+        ovrMatrix4f			ProjectionMatrix;
+        ovrMatrix4f			ViewMatrix;
+    } Eye[ 2 ];
+} ovrTracking2;
 
 class VrContext {
 public:
-    void initialize(JNIEnv *env, jobject activity, jobject assetManager, bool ARMode);
-    void destroy();
 
-    void onChangeSettings(int EnableTestMode, int Suspend);
-    void onSurfaceCreated(jobject surface);
-    void onSurfaceDestroyed();
-    void onSurfaceChanged(jobject surface);
-    void onResume();
-    void onPause();
-    bool onKeyEvent(int keyCode, int action);
-
-    void onVrModeChange();
-
-    void chooseRefreshRate();
-
-    void render(uint64_t renderedFrameIndex);
-    void renderLoading();
 
     void setControllerInfo(TrackingInfo *packet, double displayTime);
 
@@ -39,74 +65,6 @@ public:
                               const ovrQuatf *other_tracking_orientation);
     void fetchTrackingInfo(JNIEnv *env_, UdpManager *udpManager,
                            ovrVector3f *position, ovrQuatf *orientation);
-
-    void setFrameGeometry(int width, int height);
-
-    bool isVrMode() { return Ovr != NULL; }
-    bool is72Hz() { return support72hz; }
-
-    int getLoadingTexture(){
-        return loadingTexture;
-    }
-    int getSurfaceTextureID(){
-        return SurfaceTextureID;
-    }
-    int getCameraTexture(){
-        return CameraTexture;
-    }
-
-private:
-    ANativeWindow *window = NULL;
-    ovrMobile *Ovr;
-    ovrJava java;
-    JNIEnv *env;
-
-    bool UseMultiview = true;
-    GLuint SurfaceTextureID = 0;
-    GLuint loadingTexture = 0;
-    GLuint CameraTexture = 0;
-    int enableTestMode = 0;
-    int suspend = 0;
-    bool Resumed = false;
-    bool support72hz = false;
-    int FrameBufferWidth = 0;
-    int FrameBufferHeight = 0;
-
-    uint64_t FrameIndex = 0;
-    uint64_t WantedFrameIndex = 0;
-
-    // For ARCore
-    bool m_ARMode = false;
-    float position_offset_y = 0.0f;
-    bool previousHeadsetTrackpad = false;
-    float previousHeadsetY = 0.0f;
-    int g_AROverlayMode = 0; // 0: VR only, 1: AR 30% 2: AR 70% 3: AR 100%
-
-    static const int MAXIMUM_TRACKING_FRAMES = 180;
-
-    struct TrackingFrame {
-        ovrTracking2 tracking;
-        uint64_t frameIndex;
-        uint64_t fetchTime;
-        double displayTime;
-    };
-    typedef std::map<uint64_t, std::shared_ptr<TrackingFrame> > TRACKING_FRAME_MAP;
-
-    typedef enum
-    {
-        BACK_BUTTON_STATE_NONE,
-        BACK_BUTTON_STATE_PENDING_SHORT_PRESS,
-        BACK_BUTTON_STATE_SKIP_UP
-    } ovrBackButtonState;
-
-    TRACKING_FRAME_MAP trackingFrameMap;
-    Mutex trackingFrameMutex;
-
-    ovrBackButtonState BackButtonState;
-    bool BackButtonDown;
-    double BackButtonDownStartTime;
-
-    ovrRenderer Renderer;
 };
 
 #endif //ALVRCLIENT_VR_CONTEXT_H

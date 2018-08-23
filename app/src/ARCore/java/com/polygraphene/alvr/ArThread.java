@@ -66,7 +66,7 @@ public class ArThread extends ThreadBase {
         super.startBase();
     }
 
-    public static void requestPermissions(MainActivity activity) {
+    public static void requestPermissions(AlvrActivity activity) {
         ActivityCompat.requestPermissions(
                 activity, new String[]{Manifest.permission.CAMERA}, RC_PERMISSIONS);
     }
@@ -87,7 +87,7 @@ public class ArThread extends ThreadBase {
         return mErrorMessage;
     }
 
-    public void initialize(MainActivity activity) {
+    public void initialize(AlvrActivity activity) {
         try {
             Session session = createArSession(activity, mInstallRequested);
             if (session == null) {
@@ -161,7 +161,7 @@ public class ArThread extends ThreadBase {
         }
     }
 
-    private Session createArSession(MainActivity activity, boolean installRequested)
+    private Session createArSession(AlvrActivity activity, boolean installRequested)
             throws UnavailableException {
         Session session = null;
         // if we have the camera permission, create the session
@@ -185,7 +185,7 @@ public class ArThread extends ThreadBase {
     /**
      * Check to see we have the necessary permissions for this app.
      */
-    private static boolean hasCameraPermission(MainActivity activity) {
+    private static boolean hasCameraPermission(AlvrActivity activity) {
         return ContextCompat.checkSelfPermission(activity, Manifest.permission.CAMERA)
                 == PackageManager.PERMISSION_GRANTED;
     }
@@ -193,7 +193,7 @@ public class ArThread extends ThreadBase {
     /**
      * Check to see if we need to show the rationale for this permission.
      */
-    private static boolean shouldShowRequestPermissionRationale(MainActivity activity) {
+    private static boolean shouldShowRequestPermissionRationale(AlvrActivity activity) {
         return ActivityCompat.shouldShowRequestPermissionRationale(
                 activity, Manifest.permission.CAMERA);
     }
@@ -201,7 +201,7 @@ public class ArThread extends ThreadBase {
     /**
      * Launch Application Setting to grant permission.
      */
-    private void launchPermissionSettings(MainActivity activity) {
+    private void launchPermissionSettings(AlvrActivity activity) {
         Intent intent = new Intent();
         intent.setAction(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
         intent.setData(Uri.fromParts("package", activity.getPackageName(), null));
@@ -223,7 +223,7 @@ public class ArThread extends ThreadBase {
         }
     }
 
-    public static boolean onRequestPermissionsResult(MainActivity activity) {
+    public static boolean onRequestPermissionsResult(AlvrActivity activity) {
         if (!hasCameraPermission(activity)) {
             Toast.makeText(
                     activity, "Camera permission is needed to run this application", Toast.LENGTH_LONG)
@@ -260,7 +260,7 @@ public class ArThread extends ThreadBase {
         }
     }
 
-    public void debugReadPixel(MainActivity activity) {
+    public void debugReadPixel(AlvrActivity activity) {
         //Generate a new FBO. It will contain your texture.
         int fb[] = new int[1];
         GLES11Ext.glGenFramebuffersOES(1, IntBuffer.wrap(fb));

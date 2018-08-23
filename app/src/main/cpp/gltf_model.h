@@ -4,7 +4,7 @@
 #include <vector>
 #include <string>
 #include <GLES3/gl3.h>
-#include <VrApi_Types.h>
+#include "utils.h"
 
 #define TINYGLTF_NO_STB_IMAGE_WRITE
 #include "tinygltf/tiny_gltf.h"
@@ -23,7 +23,6 @@ class GltfModel {
 
     void drawNodeTree(int node_i, const ovrMatrix4f &transform);
     void drawNode(int node_i, const ovrMatrix4f &transform);
-    ovrMatrix4f createNodeTrasform(const ovrMatrix4f &baseTransform, const tinygltf::Node &node);
 public:
     void load();
     void drawScene(int position, int uv, int normal, GLint color, GLint mMatrix, GLint mode);

@@ -1,5 +1,6 @@
 package com.polygraphene.alvr;
 
+import android.app.Activity;
 import android.media.MediaCodec;
 import android.media.MediaFormat;
 import android.support.annotation.NonNull;
@@ -30,7 +31,7 @@ class DecoderThread extends ThreadBase {
     private boolean mWaitNextIDR = false;
 
     @SuppressWarnings("unused")
-    private MainActivity mMainActivity = null;
+    private Activity mMainActivity = null;
 
     private boolean mDebugIDRFrame = false;
 
@@ -71,7 +72,7 @@ class DecoderThread extends ThreadBase {
     private final List<Integer> mAvailableInputs = new LinkedList<>();
 
     DecoderThread(NALParser nalParser,
-                  Surface surface, MainActivity mainActivity) {
+                  Surface surface, Activity mainActivity) {
         mNalParser = nalParser;
         mSurface = surface;
         mMainActivity = mainActivity;

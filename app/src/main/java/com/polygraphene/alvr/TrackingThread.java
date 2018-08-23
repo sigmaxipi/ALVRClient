@@ -3,6 +3,7 @@ package com.polygraphene.alvr;
 import android.opengl.EGLContext;
 import android.util.Log;
 
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 class TrackingThread extends ThreadBase {
@@ -14,7 +15,6 @@ class TrackingThread extends ThreadBase {
     }
 
     private TrackingCallback mCallback;
-    private ArThread mArThread;
 
     public TrackingThread(int refreshRate) {
         mRefreshRate = refreshRate;
@@ -24,34 +24,31 @@ class TrackingThread extends ThreadBase {
         mCallback = callback;
     }
 
-    public void start(EGLContext mEGLContext, MainActivity mainActivity, int cameraTexture) {
-        mArThread = new ArThread(mEGLContext);
-        mArThread.initialize(mainActivity);
-        mArThread.setCameraTexture(cameraTexture);
+    public void start(EGLContext mEGLContext, AlvrActivity mainActivity) {
 
         super.startBase();
-        mArThread.start();
     }
 
-    public void onConnect() {
-        mArThread.onConnect();
+    public void onConnect(){
     }
 
     public void onDisconnect() {
-        mArThread.onDisconnect();
+
     }
 
     @Override
     public void stopAndWait() {
-        mArThread.stopAndWait();
         super.stopAndWait();
     }
+
+    public float[] mPosition = new float[3];
+    public float[] mOrientation = new float[]{0, 0, 0, 1};
 
     @Override
     public void run() {
         long previousFetchTime = System.nanoTime();
         while (!isStopped()) {
-            mCallback.onTracking(mArThread.getPosition(), mArThread.getOrientation());
+            mCallback.onTracking(mPosition, mOrientation);
             try {
                 previousFetchTime += 1000 * 1000 * 1000 / mRefreshRate;
                 long next = previousFetchTime - System.nanoTime();
@@ -68,11 +65,8 @@ class TrackingThread extends ThreadBase {
         Log.v(TAG, "TrackingThread has stopped.");
     }
 
-    public boolean onRequestPermissionsResult(MainActivity activity) {
-        return mArThread.onRequestPermissionsResult(activity);
-    }
 
     public String getErrorMessage() {
-        return mArThread.getErrorMessage();
+        return null;
     }
 }

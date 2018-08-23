@@ -11,7 +11,7 @@ android {
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         externalNativeBuild {
             cmake {
-                cppFlags ""
+                cppFlags "-std=gnu++11"
             }
         }
     }
@@ -79,4 +79,5 @@ dependencies {
     androidTestImplementation 'com.android.support.test:runner:1.0.1'
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.1'
     ARCoreImplementation('com.google.ar:core:1.2.1')
+    implementation 'com.google.vr:sdk-base:1.160.0'
 }

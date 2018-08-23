@@ -1,13 +1,13 @@
 #ifndef ALVRCLIENT_UTILS_H
 #define ALVRCLIENT_UTILS_H
 
+#include <jni.h>
 #include <stdint.h>
 #include <math.h>
 #include <time.h>
 #include <pthread.h>
 #include <android/log.h>
 #include <string>
-#include <VrApi_Types.h>
 #include <GLES3/gl3.h>
 
 //
@@ -142,6 +142,12 @@ inline double GetTimeInSeconds() {
     return (now.tv_sec * 1e9 + now.tv_nsec) * 0.000000001;
 }
 
+/// Row-major 4x4 matrix.
+typedef struct ovrMatrix4f_
+{
+    float M[4][4];
+} ovrMatrix4f;
+
 inline std::string DumpMatrix(const ovrMatrix4f *matrix) {
     char buf[1000];
     sprintf(buf, "%.5f, %.5f, %.5f, %.5f\n"
@@ -154,6 +160,12 @@ inline std::string DumpMatrix(const ovrMatrix4f *matrix) {
     );
     return std::string(buf);
 }
+
+/// Quaternion.
+typedef struct ovrQuatf_
+{
+    float x, y, z, w;
+} ovrQuatf;
 
 inline ovrQuatf quatMultipy(const ovrQuatf *a, const ovrQuatf *b){
     ovrQuatf dest;

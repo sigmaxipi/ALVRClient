@@ -117,7 +117,7 @@ private:
     std::shared_ptr<SoundPlayer> m_soundPlayer;
     std::shared_ptr<NALParser> m_nalParser;
 
-    bool m_is72Hz = false;
+    bool m_is75Hz = false;
 
     JNIEnv *m_env;
     jobject m_instance;

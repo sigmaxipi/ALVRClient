@@ -3,11 +3,15 @@ package com.polygraphene.alvr;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.SurfaceTexture;
-import android.media.MediaCodec;
 import android.opengl.EGL14;
 import android.opengl.EGLContext;
+import android.opengl.GLES11Ext;
+import android.opengl.GLES20;
 import android.util.Log;
 import android.view.Surface;
+
+import java.nio.IntBuffer;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 class VrThread extends Thread {
     private static final String TAG = "VrThread";
@@ -16,8 +20,9 @@ class VrThread extends Thread {
     private static final String KEY_SERVER_PORT = "serverPort";
 
     private static final int PORT = 9944;
+    private final long nativeGvrContext;
 
-    private MainActivity mMainActivity;
+    private AlvrActivity mMainActivity;
 
     private VrContext mVrContext = new VrContext();
     private ThreadQueue mQueue = null;
@@ -37,38 +42,34 @@ class VrThread extends Thread {
 
     private EGLContext mEGLContext;
 
-    public VrThread(MainActivity mainActivity) {
+    public VrThread(AlvrActivity mainActivity, SurfaceTexture texture, Surface surface, long nativeGvrContext) {
         this.mMainActivity = mainActivity;
-    }
+        this.nativeGvrContext = nativeGvrContext;
 
-    public void onSurfaceCreated(final Surface surface) {
-        Log.v(TAG, "VrThread.onSurfaceCreated.");
-        send(new Runnable() {
+        mSurfaceTexture = texture;
+        mSurfaceTexture.setOnFrameAvailableListener(new SurfaceTexture.OnFrameAvailableListener() {
             @Override
-            public void run() {
-                mVrContext.onSurfaceCreated(surface);
+            public void onFrameAvailable(SurfaceTexture surfaceTexture) {
+                synchronized (mWaiter) {
+                    mFrameAvailable = true;
+                    //Log.i("XXX", "onFrameAvailable " + mFrameAvailable);
+                    mWaiter.notifyAll();
+                }
             }
         });
+        mSurface = surface;
+    }
+
+    public void onSurfaceCreated() {
+        Log.v(TAG, "VrThread.onSurfaceCreated.");
     }
 
     public void onSurfaceChanged(final Surface surface) {
         Log.v(TAG, "VrThread.onSurfaceChanged.");
-        send(new Runnable() {
-            @Override
-            public void run() {
-                mVrContext.onSurfaceChanged(surface);
-            }
-        });
     }
 
     public void onSurfaceDestroyed() {
         Log.v(TAG, "VrThread.onSurfaceDestroyed.");
-        send(new Runnable() {
-            @Override
-            public void run() {
-                mVrContext.onSurfaceDestroyed();
-            }
-        });
     }
 
     public void onResume() {
@@ -89,7 +90,7 @@ class VrThread extends Thread {
 
                 try {
                     mDecoderThread.start();
-                    if (!mReceiverThread.start(mVrContext.is72Hz(), mEGLContext, mMainActivity)) {
+                    if (!mReceiverThread.start(true, mEGLContext, mMainActivity)) {
                         Log.e(TAG, "FATAL: Initialization of ReceiverThread failed.");
                         return;
                     }
@@ -98,7 +99,6 @@ class VrThread extends Thread {
                 }
 
                 Log.v(TAG, "VrThread.onResume: mVrContext.onResume().");
-                mVrContext.onResume();
             }
         });
         Log.v(TAG, "VrThread.onResume: Worker threads has started.");
@@ -121,22 +121,10 @@ class VrThread extends Thread {
         }
 
         Log.v(TAG, "VrThread.onPause: mVrContext.onPause().");
-        send(new Runnable() {
-            @Override
-            public void run() {
-                mVrContext.onPause();
-            }
-        });
         Log.v(TAG, "VrThread.onPause: All worker threads has stopped.");
     }
 
     public void onKeyEvent(final int keyCode, final int action) {
-        post(new Runnable() {
-            @Override
-            public void run() {
-                mVrContext.onKeyEvent(keyCode, action);
-            }
-        });
     }
 
     // Called from onDestroy
@@ -183,28 +171,16 @@ class VrThread extends Thread {
             notifyAll();
         }
 
-        mVrContext.initialize(mMainActivity, mMainActivity.getAssets(), Constants.IS_ARCORE_BUILD);
+       mVrContext.initialize(nativeGvrContext);
 
-        mSurfaceTexture = new SurfaceTexture(mVrContext.getSurfaceTextureID());
-        mSurfaceTexture.setOnFrameAvailableListener(new SurfaceTexture.OnFrameAvailableListener() {
-            @Override
-            public void onFrameAvailable(SurfaceTexture surfaceTexture) {
-                synchronized (mWaiter) {
-                    mFrameAvailable = true;
-                    mWaiter.notifyAll();
-                }
-            }
-        });
-        mSurface = new Surface(mSurfaceTexture);
-
-        mLoadingTexture.initializeMessageCanvas(mVrContext.getLoadingTexture());
-        mLoadingTexture.drawMessage(mMainActivity.getVersionName() + "\nLoading...");
+        //mLoadingTexture.initializeMessageCanvas(mVrContext.getLoadingTexture());
+        //mLoadingTexture.drawMessage(mMainActivity.getVersionName() + "\nLoading...");
 
         mEGLContext = EGL14.eglGetCurrentContext();
 
         Log.v(TAG, "Start loop of VrThread.");
         while (mQueue.waitIdle()) {
-            if (!mVrContext.isVrMode() || !mResumed) {
+            if (!mResumed) {
                 mQueue.waitNext();
                 continue;
             }
@@ -212,26 +188,47 @@ class VrThread extends Thread {
         }
 
         Log.v(TAG, "Destroying vrapi state.");
-        mVrContext.destroy();
     }
 
-    private void render() {
+    public void setTracking(float px, float py, float pz, float rx, float ry, float rz, float rw, float[] m, long poseTime) {
+        if(mReceiverThread == null) {
+            return;
+        }
+
+        synchronized(mReceiverThread) {
+            // Hack to save the post across threads. Pretend there is no race condition.
+            mReceiverThread.xyz[0] = px;
+            mReceiverThread.xyz[1] = py;
+            mReceiverThread.xyz[2] = pz;
+            mReceiverThread.xyzw[0] = rx;
+            mReceiverThread.xyzw[1] = ry;
+            mReceiverThread.xyzw[2] = rz;
+            mReceiverThread.xyzw[3] = rw;
+            System.arraycopy(m, 0, mReceiverThread.m, 0, 16);
+            mReceiverThread.poseTime = poseTime;
+        }
+    }
+
+    public void render() {
+        if(mReceiverThread == null || mDecoderThread == null || mReceiverThread == null) {
+            return;
+        }
         if (mReceiverThread.isConnected() && mDecoderThread.isFrameAvailable() && mReceiverThread.getErrorMessage() == null) {
             long renderedFrameIndex = waitFrame();
             if (renderedFrameIndex != -1) {
-                mVrContext.render(renderedFrameIndex);
+               // mVrContext.render(renderedFrameIndex);
             }
         } else {
             if (mReceiverThread.getErrorMessage() != null) {
                 mLoadingTexture.drawMessage(mMainActivity.getVersionName() + "\n \n!!! Error on ARCore initialization !!!\n" + mReceiverThread.getErrorMessage());
             } else {
                 if (mReceiverThread.isConnected()) {
-                    mLoadingTexture.drawMessage(mMainActivity.getVersionName() + "\n \nConnected!\nStreaming will begin soon!");
+                    //mLoadingTexture.drawMessage(mMainActivity.getVersionName() + "\n \nConnected!\nStreaming will begin soon!");
                 } else {
-                    mLoadingTexture.drawMessage(mMainActivity.getVersionName() + "\n \nPress CONNECT button\non ALVR server.");
+                    //mLoadingTexture.drawMessage(mMainActivity.getVersionName() + "\n \nPress CONNECT button\non ALVR server.");
                 }
             }
-            mVrContext.renderLoading();
+            //mVrContext.renderLoading();
             try {
                 Thread.sleep(100);
             } catch (InterruptedException e) {
@@ -240,24 +237,60 @@ class VrThread extends Thread {
         }
     }
 
-    private long waitFrame() {
+    long renderedFrameIndex = -1;
+    public long waitFrame() {
+        if(mDecoderThread == null) {
+            return 0;
+        }
         synchronized (mWaiter) {
             mFrameAvailable = false;
-            long frameIndex = mDecoderThread.render();
-            if (frameIndex == -1) {
+            renderedFrameIndex = mDecoderThread.render();
+            if (renderedFrameIndex == -1) {
                 return -1;
             }
             while (!mFrameAvailable) {
                 try {
+                    //Log.i("XXX", "waiting for frame ");
                     mWaiter.wait();
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
             }
-            mSurfaceTexture.updateTexImage();
-            return frameIndex;
+
+            try {
+                //Log.i("XXX", "waiting for tex update ");
+                synchronized (mTexWaiter) {
+                    readyForUpdate.set(true);
+                    mTexWaiter.wait();
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            //mSurfaceTexture.updateTexImage();
+
+            return renderedFrameIndex;
         }
     }
+
+    final Object mTexWaiter = new Object();
+    AtomicBoolean readyForUpdate = new AtomicBoolean ();
+    public long updateTexImage() {
+        //Log.i("XXX", "updateTexImage " + mFrameAvailable);
+
+        long renderedFrame;
+        synchronized (mTexWaiter) {
+            renderedFrame = renderedFrameIndex;
+            mSurfaceTexture.updateTexImage();
+            mTexWaiter.notifyAll();
+            if (readyForUpdate.compareAndSet(true, false)) {
+                //Log.i("XXX", "updateTexImage GOOD");
+            } else {
+                //Log.i("XXX", "updateTexImage FAIL");
+            }
+        }
+        return renderedFrame;
+    }
+
 
     private UdpReceiverThread.Callback mUdpReceiverCallback = new UdpReceiverThread.Callback() {
         @Override
@@ -267,7 +300,7 @@ class VrThread extends Thread {
             send(new Runnable() {
                 @Override
                 public void run() {
-                    mVrContext.setFrameGeometry(width, height);
+                    //mVrContext.setFrameGeometry(width, height);
                     mDecoderThread.onConnect(codec, frameQueueSize);
                 }
             });
@@ -275,7 +308,7 @@ class VrThread extends Thread {
 
         @Override
         public void onChangeSettings(int enableTestMode, int suspend, int frameQueueSize) {
-            mVrContext.onChangeSettings(enableTestMode, suspend);
+            //mVrContext.onChangeSettings(enableTestMode, suspend);
             mDecoderThread.setFrameQueueSize(frameQueueSize);
         }
 
@@ -313,6 +346,6 @@ class VrThread extends Thread {
 
     public boolean isTracking() {
         return mVrContext != null && mReceiverThread != null
-                && mVrContext.isVrMode() && mReceiverThread.isConnected();
+                && mReceiverThread.isConnected();
     }
 }

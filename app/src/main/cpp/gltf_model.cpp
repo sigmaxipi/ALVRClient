@@ -8,7 +8,6 @@
 
 #include "tinygltf/tiny_gltf.h"
 #include "utils.h"
-#include "render.h"
 
 void GltfModel::load() {
     tinygltf::TinyGLTF loader;
@@ -55,10 +54,8 @@ void GltfModel::drawScene(int position, int uv,
 
     GL(glBindVertexArray(m_vao));
 
-    ovrMatrix4f transform = ovrMatrix4f_CreateIdentity();
 
     for (auto node_i : scene.nodes) {
-        drawNodeTree(node_i, transform);
     }
 
     GL(glBindVertexArray(0));
@@ -67,13 +64,6 @@ void GltfModel::drawScene(int position, int uv,
 void GltfModel::drawNodeTree(int node_i, const ovrMatrix4f &transform) {
     auto &node = m_model.nodes[node_i];
 
-    ovrMatrix4f nodeTransform = createNodeTrasform(transform, node);
-
-    drawNode(node_i, nodeTransform);
-
-    for (auto &child_i : node.children) {
-        drawNodeTree(child_i, nodeTransform);
-    }
 }
 
 void GltfModel::drawNode(int node_i, const ovrMatrix4f &transform) {
@@ -176,27 +166,4 @@ void GltfModel::drawNode(int node_i, const ovrMatrix4f &transform) {
                           (void *) indexAccessor.byteOffset));
         GL(glDisableVertexAttribArray(m_position));
     }
-}
-
-ovrMatrix4f
-GltfModel::createNodeTrasform(const ovrMatrix4f &baseTransform, const tinygltf::Node &node) {
-    ovrMatrix4f nodeTransform = baseTransform;
-    if(node.translation.size() == 3) {
-        ovrMatrix4f translation = ovrMatrix4f_CreateTranslation(node.translation[0], node.translation[1], node.translation[2]);
-        nodeTransform = ovrMatrix4f_Multiply(&nodeTransform, &translation);
-    }
-    if(node.rotation.size() == 4) {
-        ovrQuatf q;
-        q.x = node.rotation[0];
-        q.y = node.rotation[1];
-        q.z = node.rotation[2];
-        q.w = node.rotation[3];
-        ovrMatrix4f rotation = ovrMatrix4f_CreateFromQuaternion(&q);
-        nodeTransform = ovrMatrix4f_Multiply(&nodeTransform, &rotation);
-    }
-    if(node.scale.size() == 3) {
-        ovrMatrix4f scale = ovrMatrix4f_CreateScale(node.scale[0], node.scale[1], node.scale[2]);
-        nodeTransform = ovrMatrix4f_Multiply(&nodeTransform, &scale);
-    }
-    return nodeTransform;
 }

@@ -24,7 +24,6 @@ add_library( # Sets the name of the library.
              src/main/cpp/udp.cpp
              src/main/cpp/nal.cpp
              src/main/cpp/vr_context.cpp
-             src/main/cpp/render.cpp
              src/main/cpp/latency_collector.cpp
              src/main/cpp/fec.cpp
              src/main/cpp/asset.cpp
@@ -57,7 +56,7 @@ target_link_libraries( # Specifies the target library.
                        # included in the NDK.
                        ${log-lib}
 
-                       vrapi
+                       gvr
                        GLESv3
                        EGL
                        android

@@ -228,7 +228,7 @@ UdpManager::initialize(JNIEnv *env, jint port, jstring deviceName_, jobjectArray
     m_prevSoundSequence = 0;
     m_timeDiff = 0;
 
-    m_is72Hz = is72Hz;
+    m_is75Hz = is72Hz;
 
     m_deviceName = GetStringFromJNIString(env, deviceName_);
 
@@ -388,7 +388,7 @@ void UdpManager::sendBroadcast() {
         helloMessage.version = ALVR_PROTOCOL_VERSION;
         memcpy(helloMessage.deviceName, m_deviceName.c_str(),
                std::min(m_deviceName.length(), sizeof(helloMessage.deviceName)));
-        helloMessage.refreshRate = m_is72Hz ? 72 : 60;
+        helloMessage.refreshRate = m_is75Hz ? 75 : 60;
 
         m_socket.sendBroadcast(&helloMessage, sizeof(helloMessage));
     }

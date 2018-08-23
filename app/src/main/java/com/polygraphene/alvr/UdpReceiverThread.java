@@ -22,7 +22,7 @@ class UdpReceiverThread extends ThreadBase implements NALParser, TrackingThread.
     private TrackingThread mTrackingThread;
     private VrContext mVrContext;
     private int mPort;
-    private boolean mIs72Hz = false;
+    private boolean mIs75Hz = false;
     private boolean mInitialized = false;
     private boolean mInitializeFailed = false;
 
@@ -65,10 +65,10 @@ class UdpReceiverThread extends ThreadBase implements NALParser, TrackingThread.
         mPreviousServerPort = serverPort;
     }
 
-    public boolean start(final boolean is72Hz, EGLContext mEGLContext, MainActivity mainActivity) {
-        mTrackingThread = new TrackingThread(is72Hz ? 72 : 60);
+    public boolean start(final boolean is75Hz, EGLContext mEGLContext, AlvrActivity mainActivity) {
+        mTrackingThread = new TrackingThread(is75Hz ? 75 : 60);
         mTrackingThread.setCallback(this);
-        mIs72Hz = is72Hz;
+        mIs75Hz = is75Hz;
 
         super.startBase();
 
@@ -83,7 +83,7 @@ class UdpReceiverThread extends ThreadBase implements NALParser, TrackingThread.
         }
 
         if(!mInitializeFailed) {
-            mTrackingThread.start(mEGLContext, mainActivity, mVrContext.getCameraTexture());
+            mTrackingThread.start(mEGLContext, mainActivity);
         }
         return !mInitializeFailed;
     }
@@ -100,7 +100,7 @@ class UdpReceiverThread extends ThreadBase implements NALParser, TrackingThread.
         try {
             String[] broadcastList = getBroadcastAddressList();
 
-            int ret = initializeSocket(mPort, getDeviceName(), broadcastList, mIs72Hz);
+            int ret = initializeSocket(mPort, getDeviceName(), broadcastList, mIs75Hz);
             if (ret != 0) {
                 Log.e(TAG, "Error on initializing socket. Code=" + ret + ".");
                 synchronized (this) {
@@ -165,15 +165,21 @@ class UdpReceiverThread extends ThreadBase implements NALParser, TrackingThread.
         return ret.toArray(new String[]{});
     }
 
+    // Hack to save the post across threads. Pretend there is no race condition.
+    public float[] xyz = new float[3];
+    public float[] xyzw = new float[4];
+    public float[] m = new float[16];
+    public long poseTime;
+
     @Override
-    public void onTracking(float[] position, float[] orientation) {
+    public synchronized void onTracking(float[] position, float[] orientation) {
         if (isTracking()) {
-            mVrContext.fetchTrackingInfo(getPointer(), position, orientation);
+            DaydreamLayersActivity.trackFrame(mVrContext.fetchTrackingInfo(getPointer(), xyz, xyzw), m, poseTime);
         }
     }
 
     public boolean isTracking() {
-        return mVrContext.isVrMode() && isConnected();
+        return isConnected();
     }
 
     public String getErrorMessage() {

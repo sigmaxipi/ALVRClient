@@ -1,3 +1,4 @@
 <resources>
-    <string name="app_name">ALVR (ARCore)</string>
+    <string name="ovr_name">ALVR (OVR + ARCore)</string>
+    <string name="dd_name">ALVR (Daydream)</string>
 </resources>

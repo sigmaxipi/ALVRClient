@@ -50,6 +50,7 @@ public class OutputFrameQueue {
             mFrameAvailable = true;
             Log.e(TAG, "Start playing.");
         }
+        Log.e(TAG, "FrameQueue pushed " + mQueue.size());
         if (mQueue.size() > mQueueSize) {
             Log.e(TAG, "FrameQueue is full. Discard all frame.");
             while (mQueue.size() >= 2) {
