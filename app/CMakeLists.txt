@@ -10,13 +10,16 @@ cmake_minimum_required(VERSION 3.4.1)
 # You can define multiple libraries, and CMake builds them for you.
 # Gradle automatically packages shared libraries with your APK.
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -g")
 
 link_directories(src/main/jniLibs/${ANDROID_ABI})
 
-if (VRSDK STREQUAL 'ovr')
+if (VRSDK STREQUAL "ovr")
     set(VRSOURCE "src/main/cpp/vr_context.cpp")
-elseif (VRSDK STREQUAL 'gvr')
+    add_definitions(-DOVR_SDK)
+elseif (VRSDK STREQUAL "gvr")
+    add_definitions(-DGVR_SDK)
+    set(VRSOURCE "src/main/cpp/gvr_render.cpp")
 endif()
 
 add_library( # Sets the name of the library.
@@ -34,7 +37,7 @@ add_library( # Sets the name of the library.
              src/main/cpp/asset.cpp
              src/main/cpp/gltf_model.cpp
              ../ALVR-common/reedsolomon/rs.c
-             ${VRSOURECE}
+             ${VRSOURCE}
              )
 
 # Searches for a specified prebuilt library and stores the path as a
